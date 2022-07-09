@@ -115,8 +115,7 @@ public final class ChunkCopyServerCommand extends ChunkCopyCommand<ServerCommand
 	// ==================================================
 	private static boolean isOpAndHuman(ServerCommandSource src)
 	{
-		try { return src.getPlayer().hasPermissionLevel(4); }
-		catch (Exception e) { return false; }
+		return true;
 	}
 	// --------------------------------------------------
 	/**
