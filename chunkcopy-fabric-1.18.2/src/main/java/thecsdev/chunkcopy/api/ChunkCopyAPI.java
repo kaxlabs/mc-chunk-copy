@@ -6,7 +6,6 @@ import java.io.IOException;
 
 import org.apache.commons.io.FileUtils;
 
-import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.server.world.ServerWorld;
@@ -123,13 +122,26 @@ public final class ChunkCopyAPI
 	 */
 	public static boolean loadChunkDataIO(ServerWorld world, ChunkPos chunkPos, String fileName) throws IOException
 	{
+		return loadChunkDataIO(world, chunkPos, fileName, true);
+	}
+	
+	/**
+	 * Same as {@link #loadChunkDataIO(ServerWorld, ChunkPos, String)}.
+	 * @param updateClients Should the {@link ServerWorld} clients be updated on the pasted changes that were made?
+	 */
+	public static boolean loadChunkDataIO(ServerWorld world, ChunkPos chunkPos, String fileName, boolean updateClients) throws IOException
+	{
+		//make sure the chunk isn't null or empty
+		WorldChunk chunk = world.getChunk(chunkPos.x, chunkPos.z);
+		if(chunk == null || (chunk instanceof EmptyChunk)) return false;
+		
 		//get the file
 		File file = getChunkSaveFile(world, chunkPos, fileName);
 		if(!file.exists()) return false;
 		
 		//read
-		byte[] chunkData = FileUtils.readFileToByteArray(getChunkSaveFile(world, chunkPos, fileName));
-		pasteChunkData(chunkData, world, chunkPos, true);
+		byte[] chunkData = FileUtils.readFileToByteArray(file);
+		pasteChunkData(chunkData, world, chunkPos, updateClients);
 		return true;
 	}
 	// ==================================================
@@ -159,8 +171,16 @@ public final class ChunkCopyAPI
 	 * @param isCompressed Whether or not the bytes were compressed using gZip compression.
 	 * @throws IOException If an IOException occurs while reading data from the byte array.
 	 */
-	public static void pasteChunkData(byte[] data, ServerWorld world, ChunkPos chunkPos, boolean isCompressed)
-	throws IOException
+	public static void pasteChunkData(byte[] data, ServerWorld world, ChunkPos chunkPos, boolean isCompressed) throws IOException
+	{
+		pasteChunkData(data, world, chunkPos, isCompressed, true);
+	}
+	
+	/**
+	 * Same as {@link #pasteChunkData(byte[], ServerWorld, ChunkPos, boolean)}.
+	 * @param updateClients Should the {@link ServerWorld} clients be updated on the pasted changes that were made?
+	 */
+	public static void pasteChunkData(byte[] data, ServerWorld world, ChunkPos chunkPos, boolean isCompressed, boolean updateClients) throws IOException
 	{
 		if(isCompressed) data = IOUtils.gzipDecompressBytes(data);
 		
@@ -168,7 +188,7 @@ public final class ChunkCopyAPI
 		ChunkData chunkData = new ChunkData();
 		chunkData.readData(stream);
 		stream.close();
-		chunkData.pasteData(world, chunkPos);
+		chunkData.pasteData(world, chunkPos, updateClients);
 	}
 	// --------------------------------------------------
 	/**
@@ -177,7 +197,7 @@ public final class ChunkCopyAPI
 	public static void fillChunkBlocks(ServerWorld world, ChunkPos chunkPos, BlockState block)
 	{
 		CDBFillBlocks f = new CDBFillBlocks();
-		f.BlockID = Block.getRawIdFromState(block);
+		f.state = block;
 		f.pasteData(world, chunkPos);
 		f.updateClients(world, chunkPos);
 	}

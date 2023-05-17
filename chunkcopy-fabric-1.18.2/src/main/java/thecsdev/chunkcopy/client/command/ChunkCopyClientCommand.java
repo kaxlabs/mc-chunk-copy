@@ -12,6 +12,7 @@ import net.minecraft.util.math.ChunkPos;
 import thecsdev.chunkcopy.api.AutoChunkCopy;
 import thecsdev.chunkcopy.api.ChunkCopyAPI;
 import thecsdev.chunkcopy.api.ChunkCopyUtils;
+import thecsdev.chunkcopy.api.AutoChunkCopy.ACCMode;
 import thecsdev.chunkcopy.command.ChunkCopyCommand;
 
 public final class ChunkCopyClientCommand extends ChunkCopyCommand<FabricClientCommandSource>
@@ -54,18 +55,29 @@ public final class ChunkCopyClientCommand extends ChunkCopyCommand<FabricClientC
 		ArrayList<ChunkPos> loadedChunks = ChunkCopyUtils.getNearbyLoadedChunks(world, chunkPos, chunkDistance);
 		
 		//copy chunks
-		try { for (ChunkPos cp : loadedChunks) ChunkCopyAPI.saveChunkDataIO(world, cp, fileName); }
+		int affectedChunks = 0;
+		try
+		{
+			for (ChunkPos cp : loadedChunks)
+			{
+				ChunkCopyAPI.saveChunkDataIO(world, cp, fileName);
+				affectedChunks++;
+			}
+		}
 		catch (Exception e) { handleException(commandSource, e); return; }
 		
 		//send feedback
 		if(sendFeedback)
-		{
-			commandSource.sendFeedback(new TranslatableText("chunkcopy.feedback.copied", fileName));
-		}
+			commandSource.sendFeedback(new TranslatableText("chunkcopy.feedback.copied", affectedChunks, fileName));
 	}
 	// --------------------------------------------------
 	@Override
 	protected void paste(FabricClientCommandSource commandSource, String fileName, int chunkDistance)
+	{
+		paste(commandSource, fileName, chunkDistance, true);
+	}
+	
+	protected void paste(FabricClientCommandSource commandSource, String fileName, int chunkDistance, boolean sendFeedback)
 	{
 		//check if in singleplayer
 		MinecraftClient mc = MinecraftClient.getInstance();
@@ -85,11 +97,20 @@ public final class ChunkCopyClientCommand extends ChunkCopyCommand<FabricClientC
 		ArrayList<ChunkPos> loadedChunks = ChunkCopyUtils.getNearbyLoadedChunks(world, chunkPos, chunkDistance);
 		
 		//paste chunks
-		try { for (ChunkPos cp : loadedChunks) ChunkCopyAPI.loadChunkDataIO(world, cp, fileName); }
+		int affectedChunks = 0;
+		try
+		{
+			for (ChunkPos cp : loadedChunks)
+			{
+				if(ChunkCopyAPI.loadChunkDataIO(world, cp, fileName))
+					affectedChunks++;
+			}
+		}
 		catch (Exception e) { handleException(commandSource, e); return; }
 		
 		//send feedback
-		commandSource.sendFeedback(new TranslatableText("chunkcopy.feedback.pasted", fileName));
+		if(sendFeedback)
+			commandSource.sendFeedback(new TranslatableText("chunkcopy.feedback.pasted", affectedChunks, fileName));
 	}
 	// --------------------------------------------------
 	@Override
@@ -104,31 +125,49 @@ public final class ChunkCopyClientCommand extends ChunkCopyCommand<FabricClientC
 		ArrayList<ChunkPos> loadedChunks = ChunkCopyUtils.getNearbyLoadedChunks(world, chunkPos, chunkDistance);
 		
 		//fill chunks
-		try { for (ChunkPos cp : loadedChunks) ChunkCopyAPI.fillChunkBlocks(world, cp, block); }
+		int affectedChunks = 0;
+		try
+		{
+			for (ChunkPos cp : loadedChunks)
+			{
+				ChunkCopyAPI.fillChunkBlocks(world, cp, block);
+				affectedChunks++;
+			}
+		}
 		catch (Exception e) { handleException(commandSource, e); return; }
 		
 		//send feedback
 		String bn = block.getBlock().getName().getString();
-		commandSource.sendFeedback(new TranslatableText("chunkcopy.feedback.filled", bn));
+		commandSource.sendFeedback(new TranslatableText("chunkcopy.feedback.filled", affectedChunks, bn));
 	}
 	// --------------------------------------------------
 	@Override
-	protected void autoCopyStart(FabricClientCommandSource commandSource, String fileName)
+	protected void autoChunkCopyStart(FabricClientCommandSource commandSource, String fileName, ACCMode accMode)
 	{
-		copy(commandSource, fileName, 8, false);
-		AutoChunkCopy.start(fileName);
+		//start auto chunk copy
+		AutoChunkCopy.start(fileName, accMode);
+		
 		
 		//send feedback
-		commandSource.sendFeedback(new TranslatableText("chunkcopy.feedback.autocopy_start", fileName));
+		if(accMode == ACCMode.Copying)
+		{
+			copy(commandSource, fileName, 8, false);
+			commandSource.sendFeedback(new TranslatableText("chunkcopy.feedback.autochunkcopy.start_copying", fileName));
+		}
+		else if(accMode == ACCMode.Pasting)
+		{
+			paste(commandSource, fileName, 8, false);
+			commandSource.sendFeedback(new TranslatableText("chunkcopy.feedback.autochunkcopy.start_pasting", fileName));
+		}
 	}
 	
 	@Override
-	protected void autoCopyStop(FabricClientCommandSource commandSource)
+	protected void autoChunkCopyStop(FabricClientCommandSource commandSource)
 	{
 		AutoChunkCopy.stop();
 		
 		//send feedback
-		commandSource.sendFeedback(new TranslatableText("chunkcopy.feedback.autocopy_stop"));
+		commandSource.sendFeedback(new TranslatableText("chunkcopy.feedback.autochunkcopy.stop"));
 	}
 	// ==================================================
 	/**

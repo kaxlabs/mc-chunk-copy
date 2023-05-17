@@ -7,6 +7,8 @@ import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.text.LiteralText;
 import net.minecraft.util.math.ChunkPos;
+import thecsdev.chunkcopy.api.AutoChunkCopy.ACCMode;
+import thecsdev.chunkcopy.api.AutoChunkCopy;
 import thecsdev.chunkcopy.api.ChunkCopyAPI;
 import thecsdev.chunkcopy.api.ChunkCopyUtils;
 import thecsdev.chunkcopy.command.ChunkCopyCommand;
@@ -44,10 +46,15 @@ public final class ChunkCopyServerCommand extends ChunkCopyCommand<ServerCommand
 			ArrayList<ChunkPos> loadedChunks = ChunkCopyUtils.getNearbyLoadedChunks(world, chunkPos, chunkDistance);
 			
 			//copy chunks
-			for (ChunkPos cp : loadedChunks) ChunkCopyAPI.saveChunkDataIO(world, cp, fileName);
+			int affectedChunks = 0;
+			for (ChunkPos cp : loadedChunks)
+			{
+				ChunkCopyAPI.saveChunkDataIO(world, cp, fileName);
+				affectedChunks++;
+			}
 			
 			//send feedback
-			String feedback = String.format("[Chunk Copy] Copied chunk data to '%s'.", fileName);
+			String feedback = String.format("[Chunk Copy] Copied %d chunks to '%s'.", affectedChunks, fileName);
 			commandSource.sendFeedback(new LiteralText(feedback), true);
 		}
 		catch (Exception e) { handleException(commandSource, e); return; }
@@ -72,10 +79,15 @@ public final class ChunkCopyServerCommand extends ChunkCopyCommand<ServerCommand
 			ArrayList<ChunkPos> loadedChunks = ChunkCopyUtils.getNearbyLoadedChunks(world, chunkPos, chunkDistance);
 			
 			//paste chunks
-			for (ChunkPos cp : loadedChunks) ChunkCopyAPI.loadChunkDataIO(world, cp, fileName);
+			int affectedChunks = 0;
+			for (ChunkPos cp : loadedChunks)
+			{
+				if(ChunkCopyAPI.loadChunkDataIO(world, cp, fileName))
+					affectedChunks++;
+			}
 			
 			//send feedback
-			String feedback = String.format("[Chunk Copy] Pasted chunk data from '%s'.", fileName);
+			String feedback = String.format("[Chunk Copy] Pasted %d chunks from '%s'.", affectedChunks, fileName);
 			commandSource.sendFeedback(new LiteralText(feedback), true);
 		}
 		catch (Exception e) { handleException(commandSource, e); return; }
@@ -92,25 +104,34 @@ public final class ChunkCopyServerCommand extends ChunkCopyCommand<ServerCommand
 			ArrayList<ChunkPos> loadedChunks = ChunkCopyUtils.getNearbyLoadedChunks(world, chunkPos, chunkDistance);
 			
 			//fill chunks
-			for (ChunkPos cp : loadedChunks) ChunkCopyAPI.fillChunkBlocks(world, cp, block);
+			int affectedChunks = 0;
+			for (ChunkPos cp : loadedChunks)
+			{
+				ChunkCopyAPI.fillChunkBlocks(world, cp, block);
+				affectedChunks++;
+			}
 			
 			//send feedback
 			String bn = block.getBlock().getName().getString();
-			String feedback = String.format("[Chunk Copy] Filled chunk blocks with '%s'.", bn);
+			String feedback = String.format("[Chunk Copy] Filled %d chunks with '%s'.", affectedChunks, bn);
 			commandSource.sendFeedback(new LiteralText(feedback), true);
 		}
 		catch (Exception e) { handleException(commandSource, e); return; }
 	}
 	// --------------------------------------------------
 	@Override
-	protected void autoCopyStart(ServerCommandSource commandSource, String fileName) { autoCopyStop(commandSource); }
+	protected void autoChunkCopyStart(ServerCommandSource commandSource, String fileName, ACCMode accMode)
+	{
+		autoChunkCopyStop(commandSource);
+	}
 	
 	@Override
-	protected void autoCopyStop(ServerCommandSource commandSource)
+	protected void autoChunkCopyStop(ServerCommandSource commandSource)
 	{
 		//send feedback
-		String feedback = "[Chunk Copy] Auto-copying is not available server-side.";
+		String feedback = "[Chunk Copy] AutoChunkCopy is not available server-side.";
 		commandSource.sendFeedback(new LiteralText(feedback), false);
+		AutoChunkCopy.stop();
 	}
 	// ==================================================
 	private static boolean isOpAndHuman(ServerCommandSource src)
